@@ -6,6 +6,8 @@
 * Source Code: http://github.com/johnpaulett/python-hl7
 """
 
+from copy import deepcopy
+
 __version__ = '0.2.5'
 __author__ = 'John Paulett'
 __email__ = 'john -at- paulett.org'
@@ -51,7 +53,13 @@ def parse(line):
     ## The method for parsing the message
     plan = create_parse_plan(strmsg)
     ## Start spliting the methods based upon the ParsePlan
-    return _split(strmsg, plan)
+    split = _split(strmsg, plan)
+    ## Correct the 2 first MSH fields
+    ## MSH-1 is the 4th character of the MSH segment
+    split[0][1] = Field("", [strmsg[3]])
+    ## MSH-2 is the 5th, 6th, 7th and 8th character of the MSH segment
+    split[0].insert(2, Field("", [strmsg[4:8]]))
+    return split
 
 def _split(text, plan):
     """Recursive function to split the *text* into an n-deep list,
@@ -88,7 +96,13 @@ class Container(list):
         True
 
         """
-        return self.separator.join((unicode(x) for x in self))
+        if isinstance(self, Segment) and self[0][0] == u"MSH":
+            ## Revert the fix for MSH-1
+            temp = deepcopy(self)
+            temp.pop(1)
+        else:
+            temp = self
+        return temp.separator.join((unicode(x) for x in temp))
 
 class Message(Container):
     """Representation of an HL7 message. It contains a list
